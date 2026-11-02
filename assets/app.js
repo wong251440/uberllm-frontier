@@ -78,7 +78,7 @@
     $('freshness-title').textContent=live?'DAILY FEED ACTIVE':old?'DATA OUT OF DATE':'BASELINE SNAPSHOT';
     const aa=state.latest.sources?.artificial_analysis;
     const aaSuffix=aa==='licensing_guard'?' · V5 公開同步受授權限制':aa==='not_configured'?' · V5 未連接 API':aa==='fetch_failed'?' · V5 抓取暫時失敗':aa==='artificial_analysis_free_api'?' · V5 已檢查':'';
-    $('freshness-info').textContent=live?'Listed price · 每日快照 '+(state.latest.generated_at || '').replace('T',' ').replace('Z',' UTC')+aaSuffix:old?`距上次價格更新 ${days} 天`:'尚未完成 GitHub 定時更新';
+    $('freshness-info').textContent=live?'Price now · 每日快照 '+(state.latest.market_observed_at || state.latest.generated_at || '').replace('T',' ').replace('Z',' UTC')+aaSuffix:old?`距上次價格更新 ${days} 天`:'尚未完成 GitHub 定時更新';
   }
   function renderChart(visible,frontier,base){
     const scatter=$('scatter-chart');

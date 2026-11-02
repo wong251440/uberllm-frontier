@@ -43,7 +43,7 @@ bash scripts/deploy_github_pages.sh
                                  |
                   +--------------v---------------+
                   | UberLLM public models API     |
-                  | (no key; listed-price feed)   |
+                  | (no key; market-lowest feed)   |
                   +--------------+---------------+
                                  |
           +----------------------v----------------------+
@@ -67,7 +67,7 @@ bash scripts/deploy_github_pages.sh
 
 資料來源：
 
-- UberLLM：使用 `https://api.uberllm.dev/api/v1/public/models` 的 `price_now`（listed price，每百萬 tokens）；有 API key 時優先讀取 `/v1/models` 的 `pricing`。這是預扣與部分計費使用的參考費率，不是頁面的即時最低價，也不是保證上限。每日更新；`price_basis` 標示為 `listed`。2026-11-02 曾切換市場最低價，當日已依使用者要求改回 listed price。
+- UberLLM：模型清單使用 `https://api.uberllm.dev/api/v1/public/models`；價格使用官方頁面同源 `https://uberllm.dev/api/v1/public/market/live` 的 `price_now`（目前市場最低價，每百萬 tokens），包含 cache-read 價格。每日快照記錄來源時間；實際成交價格可能較高。來源失敗時拒絕更新，不以 listed price 替代。使用者已選擇 Price now 作為比較基準。
 - Artificial Analysis：`https://artificialanalysis.ai/api/v2/language/models/free`，API key 在伺服器／GitHub Actions secret 中，前端不會取得。**僅在取得合適的公開再散布許可時才能將官方 API 分數定期發布到公開 Pages**。官方說明：https://artificialanalysis.ai/data-api/docs 。
 - 起始模型及分數：2026-11-01 的前次 251 個模型快照，涵蓋正式 V5、V4 校準與啟發式推估。**此快照不是即時 API 讀值**。未透過公開 API 實際驗證前，網站標記為 `BASELINE SNAPSHOT`。
 
@@ -154,7 +154,7 @@ GitHub Pages 與本機 HTTP 預覽會從 `data/latest.json`、`data/history.json
 - **公開模型端點未能在目前執行環境直接測試 HTTP 回應**。價格 parser 支援常見 `price_now`、`pricing`、cache schema，並使用舊快照比較判斷 USD/token 或 USD/1M 單位。如果 UberLLM 更改資料格式，Action 會**拒絕覆蓋既有資料**。請在 Actions 日誌查看 parser 錯誤、修改 `scripts/update.py` 的欄位映射後重跑。
 - **每天部署必須使用 GitHub Actions 發布模式**：Actions 的 `GITHUB_TOKEN` commit 不會觸發 Pages branch 模式重建；本專案同一排程會直接執行 `actions/deploy-pages` 以更新網站。**GitHub Actions 排程不是秒級準時觸發**，可能延遲。第一次部署需手動點 `Run workflow`。長期未活動的 public repo 可能被 GitHub 停用排程；本專案每天有有效更新會自動提交當天 timestamp，避免純粹沒有異動而被判定長期無活動，但不保證免受 GitHub 服務政策影響。
 - **公開 Pages 意味著整份 repo 和 data JSON 可供任何人存取**；不要將個人、公司機密、API keys、內部模型使用量等放入資料。AA key 僅放 GitHub Actions secrets。
-- **價格 vs 實際支付**：此圖分析 listed price 每日快照，不代表該請求一定由最低價賣家處理，且不包含 top-up fee 或稅費。
+- **價格 vs 實際支付**：此圖分析 Price now 市場最低價每日快照，不代表該請求一定由最低價賣家處理，且不包含 top-up fee 或稅費。
 
 來源及授權文件：
 
