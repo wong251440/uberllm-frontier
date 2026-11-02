@@ -1,0 +1,86 @@
+name: Daily UberLLM tracking + GitHub Pages publish
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    # 11:17 JST (UTC+9), avoiding crowded top-of-hour cron slots.
+    - cron: "17 2 * * *"
+
+concurrency:
+  group: uberllm-frontier-pages
+  cancel-in-progress: false
+
+jobs:
+  refresh-data:
+    # User code pushes republish the site, but do not call upstream APIs unnecessarily.
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: true
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Update UberLLM prices and licensed AA V5 scores
+        env:
+          AA_API_KEY: ${{ secrets.AA_API_KEY }}
+          UBERLLM_API_KEY: ${{ secrets.UBERLLM_API_KEY }}
+          PUBLIC_DASHBOARD: '1'
+          AA_REDISTRIBUTION_ALLOWED: ${{ vars.AA_REDISTRIBUTION_ALLOWED }}
+        run: python scripts/update.py
+      - name: Validate tracked data
+        run: python -m unittest discover -s tests -p 'test_live_smoke.py' -v
+      - name: Persist daily snapshots (GitHub token commits do not trigger Pages builds)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/latest.json data/history.json data/events.json
+          if git diff --cached --quiet; then
+            echo "No data changes."
+          else
+            git commit -m "data: daily UberLLM snapshot $(date -u +%F)"
+            git push origin HEAD:main
+          fi
+
+  deploy-pages:
+    # Always publish the last known good snapshot, even if remote API is unavailable.
+    needs: [refresh-data]
+    if: ${{ always() && !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout current main (including the latest data commit)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Stage public site only (exclude source code/tests/seed dataset)
+        run: |
+          mkdir -p site
+          cp index.html site/index.html
+          cp -R assets data site/
+          touch site/.nojekyll
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./site
+      - name: Deploy Pages directly from this same workflow
+        id: deployment
+        uses: actions/deploy-pages@v4

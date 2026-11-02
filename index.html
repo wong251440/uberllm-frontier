@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="UberLLM 各模型的 Intelligence Index × 有效成本。每日價格追蹤、歷史資料、Pareto 前緣與互動四象限。">
+  <title>Frontier Atlas — UberLLM Intelligence × Cost</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <div class="site-shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Frontier Atlas 首頁">
+        <div class="brand-mark"><span class="mark-main"></span><span class="mark-light"></span></div>
+        <span class="brand-text">FRONTIER <strong>ATLAS</strong><small>MODEL ECONOMICS OBSERVATORY</small></span>
+      </a>
+      <div class="topbar-actions">
+        <a class="quiet-link hide-small" href="https://artificialanalysis.ai/" rel="noreferrer" target="_blank">INDEX BY ARTIFICIAL ANALYSIS <span>↗</span></a>
+        <span class="top-divider"></span>
+        <span class="clock-stamp" id="header-date">2026.11.01 SNAPSHOT</span>
+        <button class="icon-button" id="reload-btn" title="重新讀取網站資料" aria-label="重新載入"><svg viewBox="0 0 24 24"><path d="M21 4v6h-6M3 20v-6h6"/><path d="M20 10a8 8 0 0 0-14-4L3 9m18 6-3 3a8 8 0 0 1-14-4"/></svg></button>
+      </div>
+    </header>
+
+    <section class="intro">
+      <div class="intro-copy">
+        <div class="eyebrow"><span class="pulse-dot"></span> DAILY MARKET INTELLIGENCE <span class="eyebrow-line"></span> V5 INTELLIGENCE INDEX</div>
+        <h1>找到能力與成本之間的<span>最佳前緣。</span></h1>
+        <p>追蹤 UberLLM 的模型價格、Artificial Analysis Intelligence Index 與 Pareto 最優解。每個價格變化，都是更好選擇的機會。</p>
+      </div>
+      <div class="intro-status" id="freshness-box">
+        <div class="status-line"><span class="status-orb muted" id="freshness-orb"></span><span id="freshness-title">BASELINE SNAPSHOT</span></div>
+        <div class="status-date" id="freshness-date">2026.11.01</div>
+        <div class="status-info" id="freshness-info">尚未啟用自動追蹤</div>
+      </div>
+    </section>
+
+    <section class="kpi-grid" aria-label="追蹤摘要">
+      <article class="kpi-card"><span class="kpi-label">TRACKED MODELS <i class="accent-dot color-lime"></i></span><div class="kpi-value" id="kpi-models">251</div><span class="kpi-bottom" id="kpi-models-sub">跨平台 LLM 模型與路由</span><span class="kpi-graphic graphic-1"></span></article>
+      <article class="kpi-card"><span class="kpi-label">PARETO EFFICIENT <i class="accent-dot color-teal"></i></span><div class="kpi-value" id="kpi-frontier">9</div><span class="kpi-bottom">目前成本 / 智力最優選擇</span><span class="kpi-graphic graphic-2"></span></article>
+      <article class="kpi-card"><span class="kpi-label">V5 VERIFIED <i class="accent-dot color-blue"></i></span><div class="kpi-value" id="kpi-v5">37 <small>/ 251</small></div><span class="kpi-bottom">正式 V5（其餘為換算或估計）</span><span class="kpi-graphic graphic-3"></span></article>
+      <article class="kpi-card"><span class="kpi-label">MEDIAN BLENDED COST <i class="accent-dot color-orange"></i></span><div class="kpi-value"><small>$</small><span id="kpi-median">2.368</span></div><span class="kpi-bottom">美元 / 100 萬 output tokens</span><span class="kpi-graphic graphic-4"></span></article>
+    </section>
+
+    <div class="content-layout">
+      <aside class="filter-panel">
+        <div class="panel-head"><span class="tiny-eyebrow">CONTROL CENTER</span><button class="text-button" id="reset-btn">全部重設 ↻</button></div>
+        <h2>自訂比較方式</h2>
+        <div class="form-field">
+          <label for="model-search">搜尋模型</label>
+          <div class="search-field"><svg viewBox="0 0 24 24"><circle cx="10.6" cy="10.6" r="6.6"/><path d="m16 16 5 5"/></svg><input id="model-search" type="search" placeholder="GPT, Claude, Qwen…" autocomplete="off"></div>
+        </div>
+        <div class="form-field">
+          <label for="provider-select">模型供應商</label>
+          <div class="select-wrap"><select id="provider-select"><option value="all">所有供應商</option></select></div>
+        </div>
+        <div class="form-field">
+          <label for="score-filter">分數來源 <span class="inline-help" title="實測與推估顯示在同一張圖，可切換篩選">?</span></label>
+          <div class="select-wrap"><select id="score-filter">
+            <option value="all">全部分數（含估計）</option>
+            <option value="v5">僅正式 V5</option>
+            <option value="v4_calibrated">僅 V4→V5 換算</option>
+            <option value="heuristic">僅啟發式推估</option>
+          </select></div>
+        </div>
+        <div class="filter-divider"></div>
+        <span class="tiny-eyebrow">WORKLOAD SIMULATOR</span>
+        <div class="form-field has-info">
+          <label for="ratio-input">Input : Output <span class="input-value">: 1</span></label>
+          <div class="number-input"><input id="ratio-input" type="number" value="150" min="0" max="2000" step="5"><span class="num-unit">INPUT / 1M OUTPUT</span></div>
+        </div>
+        <div class="form-field">
+          <label for="cache-slider">Input cache hit <strong id="cache-percent">90%</strong></label>
+          <input type="range" id="cache-slider" min="0" max="100" step="5" value="90">
+          <div class="slider-labels"><span>0%</span><span>50%</span><span>100%</span></div>
+        </div>
+        <div class="formula-box"><span class="formula-icon">ƒ(x)</span><div><strong>有效成本計算</strong><span id="formula-display">15 × input + 135 × cached + 1 × output</span><small>USD · output 基準 100 萬 tokens</small></div></div>
+        <div class="filter-divider"></div>
+        <div class="form-field">
+          <label for="date-select">歷史快照日期</label>
+          <div class="select-wrap"><select id="date-select"><option value="latest">最新快照</option></select></div>
+        </div>
+        <label class="toggle-row"><input type="checkbox" id="available-only" checked><span class="switch"></span>僅顯示目前上架的模型</label>
+        <label class="toggle-row"><input type="checkbox" id="labels-toggle"><span class="switch"></span>顯示 Pareto 模型名稱</label>
+        <div class="filter-bottom"><div class="subtle-dot"></div><p>價格使用 UberLLM 目錄；cache 缺值可能沿用歷史比率或代理估計。推估分數不等於實測 benchmark。</p></div>
+      </aside>
+
+      <main class="chart-column">
+        <section class="chart-panel">
+          <div class="chart-head">
+            <div><span class="tiny-eyebrow">THE EFFICIENCY MAP</span><h2>Intelligence × Cost <span class="h2-suffix">/ QUADRANT</span></h2></div>
+            <div class="chart-utilities"><button class="chip is-active" data-mode="all">全部模型</button><button class="chip" data-mode="pareto">Pareto only</button><button class="chip" id="csv-btn" title="匯出目前篩選資料">↓ CSV</button></div>
+          </div>
+          <div class="chart-subhead"><span><i class="small-square lime"></i>PARETO FRONTIER</span><span><i class="small-square slate"></i>MODEL ROUTES</span><span class="chart-count" id="visible-count">251 POINTS</span></div>
+          <div class="chart-area"><div id="scatter-chart" role="img" aria-label="Model intelligence versus effective API cost scatter plot; click a model to inspect"></div></div>
+          <div class="chart-bottom"><span><span class="live-circ"></span>越往左：越低成本　·　越往上：越高能力</span><span id="chart-median-label">四象限以中位數分割</span></div>
+        </section>
+        <section class="table-panel">
+          <div class="panel-title-line"><div><span class="tiny-eyebrow">UNDOMINATED SET</span><h2>最佳 Pareto 前緣</h2></div><span class="count-tag" id="pareto-table-count">9 MODELS</span></div>
+          <div class="table-scroll"><table><thead><tr><th>MODEL</th><th>INDEX V5 EQUIV.</th><th>BLENDED COST</th><th class="last-table-col">SCORE ORIGIN</th></tr></thead><tbody id="pareto-body"></tbody></table></div>
+          <div class="table-footer">最低成本方向 → 最高 Intelligence 方向 · 點擊模型查看歷史</div>
+        </section>
+      </main>
+
+      <aside class="insight-column">
+        <section class="detail-panel">
+          <span class="tiny-eyebrow">MODEL INSPECTOR</span>
+          <div id="model-inspector">
+            <div class="inspector-empty"><div class="inspector-empty-icon">⌖</div><strong>選擇任意模型</strong><p>點擊散點圖或 Pareto 清單，檢視成本結構、分數依據與歷史走勢。</p></div>
+          </div>
+        </section>
+        <section class="activity-panel">
+          <div class="panel-title-line"><div><span class="tiny-eyebrow">MARKET SIGNALS</span><h2>最新異動</h2></div><span class="activity-pulse"></span></div>
+          <div id="activity-list"><div class="empty-activity">每日價格更新啟動後，會在這裡顯示價格跳動、新模型與新 V5 分數。</div></div>
+        </section>
+        <section class="method-panel"><span class="tiny-eyebrow">METHODOLOGY</span><h3>對估計保持透明。</h3><p>使用最高可得 thinking effort 的 Intelligence Index。缺少 V5 時使用 V4 校準或模型系列推估。這些估值適合探索，不適合作為正式模型評測。<strong>公開發布 AA 指數資料前，請先取得對應再散布授權；免費 API 不提供此權利。</strong></p><a href="https://artificialanalysis.ai/data-api/docs" target="_blank" rel="noreferrer">檢視數據來源與方法 ↗</a></section>
+      </aside>
+    </div>
+    <footer class="site-footer">
+      <div>FRONTIER ATLAS <span class="footer-sep">/</span> AN OPEN, STATIC MODEL-ECONOMICS DASHBOARD</div>
+      <div>Prices: <a href="https://uberllm.dev/" target="_blank" rel="noreferrer">UberLLM ↗</a> <span>·</span> Intelligence: <a href="https://artificialanalysis.ai/" target="_blank" rel="noreferrer">Artificial Analysis ↗</a> <span>·</span> Not affiliated with either.</div>
+    </footer>
+  </div>
+  <script src="assets/vendor/plotly.min.js"></script>
+  <script src="assets/bootstrap.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>
