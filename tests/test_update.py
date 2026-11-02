@@ -155,3 +155,12 @@ def test_api_v4_does_not_relabel_v5_snapshot(tmp_path,monkeypatch):
     assert latest['aa_api_reported_index_version']==4.1
     assert latest['score_observed_at']==baseline['score_observed_at']
     assert any('4.1' in x for x in latest['warnings'])
+
+
+def test_public_mtok_prices_are_already_per_million():
+    rows=mod.parse_catalog({'models':[{'id':'openai/gpt-oss-120b',
+        'price_now':{'input_usd_per_mtok':0.0308,'output_usd_per_mtok':0.132,
+                     'cache_read_usd_per_mtok':0.00462}}]})
+    assert rows[0]['prices']=={'input':0.0308,'output':0.132,'cached':0.00462}
+    assert rows[0]['unit_hint']=='million'
+    assert mod.infer_scale(rows,{})==1.0

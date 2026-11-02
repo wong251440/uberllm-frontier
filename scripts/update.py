@@ -95,12 +95,12 @@ def price_value(price, names):
                         if num is not None:return num, 'million' if ('million' in field or '1m' in field) else 'unknown'
             else:
                 num=finite(v)
-                if num is not None: return num,'million' if ('million' in str(key) or '_1m' in str(key)) else 'unknown'
+                if num is not None: return num,'million' if ('million' in str(key) or '_1m' in str(key) or '_mtok' in str(key)) else 'unknown'
     return None
 
-INPUT=('input_usd_per_million','input_usd_per_1m','price_1m_input_tokens','input_per_million','input_per_1m','prompt_per_million','input_price_per_million','input_usd','prompt_usd','prompt','input','input_price','price_input','input_token_price')
-OUTPUT=('output_usd_per_million','output_usd_per_1m','price_1m_output_tokens','output_per_million','output_per_1m','completion_per_million','output_usd','completion_usd','completion','output','output_price','price_output','output_token_price')
-CACHE=('cached_input_usd_per_million','cached_input_per_million','cache_read_usd_per_million','cache_hit_usd_per_million','price_1m_cache_hit_tokens','cache_read_per_million','cache_read_usd','cache_hit_usd','cached_input_usd','cache_read','cache_hit','cached_input','cache_price','cache_input','cached_prompt','cached')
+INPUT=('input_usd_per_mtok','input_usd_per_million','input_usd_per_1m','price_1m_input_tokens','input_per_million','input_per_1m','prompt_per_million','input_price_per_million','input_usd','prompt_usd','prompt','input','input_price','price_input','input_token_price')
+OUTPUT=('output_usd_per_mtok','output_usd_per_million','output_usd_per_1m','price_1m_output_tokens','output_per_million','output_per_1m','completion_per_million','output_usd','completion_usd','completion','output','output_price','price_output','output_token_price')
+CACHE=('cache_read_usd_per_mtok','cached_input_usd_per_mtok','cached_input_usd_per_million','cached_input_per_million','cache_read_usd_per_million','cache_hit_usd_per_million','price_1m_cache_hit_tokens','cache_read_per_million','cache_read_usd','cache_hit_usd','cached_input_usd','cache_read','cache_hit','cached_input','cache_price','cache_input','cached_prompt','cached')
 
 
 def parse_catalog(payload):
