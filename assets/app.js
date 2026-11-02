@@ -4,7 +4,7 @@
   const $ = id => document.getElementById(id);
   const sourceColors = ['#b9e987','#6bd8c1','#93b8f3','#f6bf82','#e7a2ca','#bf9def','#d1d998','#ec8d9f','#82bfa0','#94a5f5','#e2c9ac','#9ecbd0'];
   const state = {latest:null,history:null,events:null, selectedDate:'latest', provider:'all',scoreFilter:'all',search:'',ratio:150,cache:0.9,
-    mode:'all',activeId:null,availableOnly:true,showLabels:false,view:[],frontier:[],dates:[]};
+    mode:'all',rangeMode:'focus',rangeMax:null,activeId:null,availableOnly:true,showLabels:false,view:[],frontier:[],dates:[]};
   const escapeHTML = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const costFmt = n => n == null || !isFinite(n) ? '—' : n >= 1000 ? '$'+n.toLocaleString('en-US',{maximumFractionDigits:1}) : n >= 1 ? '$'+n.toFixed(3) : n >= .01 ? '$'+n.toFixed(4) : '$'+n.toPrecision(3);
   const shortFmt = n => n == null || !isFinite(n) ? '—' : (n < .001 ? n.toPrecision(4): n < .1 ? n.toFixed(5) :n.toFixed(3));
@@ -78,7 +78,7 @@
     $('freshness-title').textContent=live?'DAILY FEED ACTIVE':old?'DATA OUT OF DATE':'BASELINE SNAPSHOT';
     const aa=state.latest.sources?.artificial_analysis;
     const aaSuffix=aa==='licensing_guard'?' · V5 公開同步受授權限制':aa==='not_configured'?' · V5 未連接 API':aa==='fetch_failed'?' · V5 抓取暫時失敗':aa==='artificial_analysis_free_api'?' · V5 已檢查':'';
-    $('freshness-info').textContent=live?'市場最低價 · 每日快照 '+(state.latest.market_observed_at || state.latest.generated_at || '').replace('T',' ').replace('Z',' UTC')+aaSuffix:old?`距上次價格更新 ${days} 天`:'尚未完成 GitHub 定時更新';
+    $('freshness-info').textContent=live?'Listed price · 每日快照 '+(state.latest.generated_at || '').replace('T',' ').replace('Z',' UTC')+aaSuffix:old?`距上次價格更新 ${days} 天`:'尚未完成 GitHub 定時更新';
   }
   function renderChart(visible,frontier,base){
     const scatter=$('scatter-chart');
@@ -90,9 +90,14 @@
       scatter.innerHTML='<div style="padding:110px 12px;text-align:center;color:#829986;font-size:14px">沒有符合篩選條件的模型。請清除搜尋或調整篩選。</div>';
       return;
     }
-    const allCosts=base.map(m=>m.cost).filter(x=>x>0);
+    const allCosts=visible.map(m=>m.cost).filter(x=>x>0).sort((a,b)=>a-b);
     const lo=0;
-    const hi=Math.max(...allCosts)*1.08;
+    const focusMax=allCosts[Math.max(0,Math.ceil(allCosts.length*.9)-1)]*1.05;
+    const hi=state.rangeMode==='full' ? Math.max(...allCosts)*1.05 : state.rangeMax || focusMax;
+    $('range-max').value=Number(hi.toPrecision(5));
+    const outside=visible.filter(m=>m.cost>hi).length;
+    $('range-note').textContent=`線性刻度 · 設定上限 ${costFmt(hi)} · ${outside} 個模型超出上限；可向右平移、調整上限或查看完整範圍。`;
+    document.querySelectorAll('[data-range]').forEach(el=>el.classList.toggle('is-active',el.dataset.range===state.rangeMode));
     const ymin=Math.min(0,Math.floor(Math.min(...base.map(m=>m.scoreValue))-6));
     const ymax=Math.max(65,Math.max(...base.map(m=>m.scoreValue))+7);
     const ratioX=Math.max(0,Math.min(1,(midCost-lo)/(hi-lo)));
@@ -134,7 +139,7 @@
         gridcolor:'rgba(120,153,120,.10)',zeroline:false,color:'#8a9e8e',tickfont:{size:10},tickformat:'~g',showline:false},
       yaxis:{range:[ymin,ymax],title:{text:'INTELLIGENCE INDEX V5 ↑',font:{size:9,color:'#93a994'},standoff:13},
         gridcolor:'rgba(120,153,120,.10)',zeroline:false,color:'#8a9e8e',tickfont:{size:10},dtick:10,showline:false},
-      shapes,annotations,hoverdistance:28,spikedistance:20,uirevision:'dynamic-'+state.selectedDate+'-'+state.ratio+'-'+state.cache
+      shapes,annotations,hoverdistance:28,spikedistance:20,uirevision:'dynamic-'+state.selectedDate+'-'+state.ratio+'-'+state.cache+'-'+state.rangeMode+'-'+state.rangeMax+'-'+state.search+'-'+state.provider+'-'+state.scoreFilter+'-'+state.mode
     };
     const cfg={responsive:true,displaylogo:false,toImageButtonOptions:{format:'png',filename:'uberllm-frontier-atlas',scale:2},
       modeBarButtonsToRemove:['lasso2d','select2d','toggleSpikelines'],modeBarButtonsToAdd:[],scrollZoom:true};
@@ -210,6 +215,14 @@
     if(state.activeId)selectModel(state.activeId);
   }
   function setHandlers(){
+    document.querySelectorAll('[data-range]').forEach(el=>el.addEventListener('click',()=>{
+      state.rangeMode=el.dataset.range;state.rangeMax=null;update();
+    }));
+    $('range-max').addEventListener('change',e=>{
+      const n=Number(e.target.value);
+      if(Number.isFinite(n)&&n>0){state.rangeMode='custom';state.rangeMax=n;}
+      update();
+    });
     $('provider-select').addEventListener('change',e=>{state.provider=e.target.value;update();});
     $('score-filter').addEventListener('change',e=>{state.scoreFilter=e.target.value;update();});
     $('model-search').addEventListener('input',e=>{state.search=e.target.value.trim().toLowerCase();update();});
@@ -222,7 +235,7 @@
       state.mode=el.getAttribute('data-mode');document.querySelectorAll('.chip[data-mode]').forEach(n=>n.classList.toggle('is-active',n===el));update();
     }));
     $('reset-btn').addEventListener('click',()=>{
-      state.provider='all';state.scoreFilter='all';state.search='';state.ratio=150;state.cache=.9;state.mode='all';state.selectedDate='latest';state.availableOnly=true;state.showLabels=false;
+      state.provider='all';state.scoreFilter='all';state.search='';state.ratio=150;state.cache=.9;state.mode='all';state.rangeMode='focus';state.rangeMax=null;state.selectedDate='latest';state.availableOnly=true;state.showLabels=false;
       $('provider-select').value='all';$('score-filter').value='all';$('model-search').value='';$('ratio-input').value=150;$('cache-slider').value=90;$('cache-percent').textContent='90%';$('date-select').value='latest';$('available-only').checked=true;$('labels-toggle').checked=false;
       document.querySelectorAll('.chip[data-mode]').forEach(x=>x.classList.toggle('is-active',x.dataset.mode==='all'));update();
     });
