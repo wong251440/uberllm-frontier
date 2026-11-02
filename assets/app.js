@@ -218,11 +218,13 @@
     document.querySelectorAll('[data-range]').forEach(el=>el.addEventListener('click',()=>{
       state.rangeMode=el.dataset.range;state.rangeMax=null;update();
     }));
-    $('range-max').addEventListener('change',e=>{
-      const n=Number(e.target.value);
+    function applyRange(){
+      const n=Number($('range-max').value);
       if(Number.isFinite(n)&&n>0){state.rangeMode='custom';state.rangeMax=n;}
       update();
-    });
+    }
+    $('range-apply').addEventListener('click',applyRange);
+    $('range-max').addEventListener('keydown',e=>{if(e.key==='Enter')applyRange();});
     $('provider-select').addEventListener('change',e=>{state.provider=e.target.value;update();});
     $('score-filter').addEventListener('change',e=>{state.scoreFilter=e.target.value;update();});
     $('model-search').addEventListener('input',e=>{state.search=e.target.value.trim().toLowerCase();update();});
