@@ -8,6 +8,7 @@
   const escapeHTML = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const costFmt = n => n == null || !isFinite(n) ? '—' : n >= 1000 ? '$'+n.toLocaleString('en-US',{maximumFractionDigits:1}) : n >= 1 ? '$'+n.toFixed(3) : n >= .01 ? '$'+n.toFixed(4) : '$'+n.toPrecision(3);
   const shortFmt = n => n == null || !isFinite(n) ? '—' : (n < .001 ? n.toPrecision(4): n < .1 ? n.toFixed(5) :n.toFixed(3));
+  const priceFmt = n => n == null || !isFinite(n) ? '—' : '$'+Number(n.toPrecision(6)).toString();
   const numFmt = n => n == null || !isFinite(n) ? '—' : Number(n).toFixed(1).replace(/\.0$/,'');
   const median = nums => {const a=nums.filter(Number.isFinite).sort((x,y)=>x-y);if(!a.length)return 0;const k=a.length>>1;return a.length%2 ? a[k] :(a[k]+a[k-1])/2;};
   const nameLabel = m => {
@@ -77,7 +78,7 @@
     $('freshness-title').textContent=live?'DAILY FEED ACTIVE':old?'DATA OUT OF DATE':'BASELINE SNAPSHOT';
     const aa=state.latest.sources?.artificial_analysis;
     const aaSuffix=aa==='licensing_guard'?' · V5 公開同步受授權限制':aa==='not_configured'?' · V5 未連接 API':aa==='fetch_failed'?' · V5 抓取暫時失敗':aa==='artificial_analysis_free_api'?' · V5 已檢查':'';
-    $('freshness-info').textContent=live?'UberLLM 每日資料同步'+aaSuffix:old?`距上次價格更新 ${days} 天`:'尚未完成 GitHub 定時更新';
+    $('freshness-info').textContent=live?'市場最低價 · 每日快照 '+(state.latest.market_observed_at || state.latest.generated_at || '').replace('T',' ').replace('Z',' UTC')+aaSuffix:old?`距上次價格更新 ${days} 天`:'尚未完成 GitHub 定時更新';
   }
   function renderChart(visible,frontier,base){
     const scatter=$('scatter-chart');
@@ -90,12 +91,11 @@
       return;
     }
     const allCosts=base.map(m=>m.cost).filter(x=>x>0);
-    const lo=Math.max(1e-8,Math.min(...allCosts)*.55);
-    const hi=Math.max(...allCosts)*1.65;
+    const lo=0;
+    const hi=Math.max(...allCosts)*1.08;
     const ymin=Math.min(0,Math.floor(Math.min(...base.map(m=>m.scoreValue))-6));
     const ymax=Math.max(65,Math.max(...base.map(m=>m.scoreValue))+7);
-    const xlog=v=>Math.log10(Math.max(1e-9,v));
-    const ratioX=Math.max(.09,Math.min(.91,(xlog(midCost)-xlog(lo))/(xlog(hi)-xlog(lo))));
+    const ratioX=Math.max(0,Math.min(1,(midCost-lo)/(hi-lo)));
     const ratioY=Math.max(.09,Math.min(.91,(midScore-ymin)/(ymax-ymin)));
     const lines=[...frontier].sort((a,b)=>a.cost-b.cost);
     const traces=[{
@@ -106,7 +106,7 @@
       text:visible.map(m=>nameLabel(m)),customdata:visible.map(m=>m.id),
       marker:{color:visible.map(m=>providerColor(m.provider)),size:visible.map(m=>frontier.some(f=>f.id===m.id)?10.7:8.1),
         opacity:.85,line:{width:.55,color:'#172019'}},
-      hovertemplate:'<b>%{text}</b><br>Intelligence V5：%{y:.1f}<br>有效成本：$%{x:.4f}<br>點擊查看歷史<extra></extra>',
+      hovertemplate:'<b>%{text}</b><br>Intelligence V5：%{y:.1f}<br>有效成本：$%{x:.6g}<br>點擊查看歷史<extra></extra>',
       showlegend:false,name:'Models'
     }];
     if(state.showLabels){
@@ -129,9 +129,9 @@
     ];
     const layout={
       paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)',font:{color:'#9eb3a0',size:11,family:'Inter, system-ui, sans-serif'},
-      margin:{l:51,r:20,t:33,b:58},showlegend:false,dragmode:'zoom',hovermode:'closest',hoverlabel:{bgcolor:'#27372c',bordercolor:'#56805b',font:{color:'#f4faef',size:12}},
-      xaxis:{type:'log',range:[xlog(lo),xlog(hi)],title:{text:'BLENDED COST · USD / 1M OUTPUT →',font:{size:9,color:'#93a994'},standoff:15},
-        gridcolor:'rgba(120,153,120,.10)',zeroline:false,color:'#8a9e8e',tickfont:{size:10},tickformat:'.0e',showline:false},
+      margin:{l:51,r:20,t:33,b:58},showlegend:false,dragmode:'pan',hovermode:'closest',hoverlabel:{bgcolor:'#27372c',bordercolor:'#56805b',font:{color:'#f4faef',size:12}},
+      xaxis:{type:'linear',range:[lo,hi],title:{text:'BLENDED COST · USD / 1M OUTPUT →',font:{size:9,color:'#93a994'},standoff:15},
+        gridcolor:'rgba(120,153,120,.10)',zeroline:false,color:'#8a9e8e',tickfont:{size:10},tickformat:'~g',showline:false},
       yaxis:{range:[ymin,ymax],title:{text:'INTELLIGENCE INDEX V5 ↑',font:{size:9,color:'#93a994'},standoff:13},
         gridcolor:'rgba(120,153,120,.10)',zeroline:false,color:'#8a9e8e',tickfont:{size:10},dtick:10,showline:false},
       shapes,annotations,hoverdistance:28,spikedistance:20,uirevision:'dynamic-'+state.selectedDate+'-'+state.ratio+'-'+state.cache
@@ -165,13 +165,13 @@
     const src=m.score.source_url && /^https:\/\//.test(m.score.source_url)?m.score.source_url:'https://artificialanalysis.ai/';
     const url=m.model_url && /^https:\/\//.test(m.model_url)?m.model_url:'https://uberllm.dev/';
     const confidence=m.score.confidence || (m.score.kind==='v5'?'measured':'estimated');
-    const cacheMsg=({'live_catalog':'目前目錄實際 cache 價','observed':'基準時觀察到的 cache 價','estimated_from_prior_ratio':'依上次輸入/快取比率估計','proxy':'供應商平均折扣代理','assumed_uncached':'假設沒有 cache 折扣'})[m.cache_quality]||m.cache_quality;
+    const cacheMsg=({'live_market':'市場最低 cache 價快照','live_catalog':'目錄 cache 價快照','observed':'基準時觀察到的 cache 價','estimated_from_prior_ratio':'依上次輸入/快取比率估計','proxy':'供應商平均折扣代理','assumed_uncached':'假設沒有 cache 折扣'})[m.cache_quality]||m.cache_quality;
     const verified=m.source==='v5';
     $('model-inspector').innerHTML=`
       <h2 class="detail-heading">${escapeHTML(nameLabel(m))}</h2><div class="model-id">${escapeHTML(m.id)}</div>
       <div class="detail-meta"><span class="detail-badge ${verified?'':'badge-estimate'}">${escapeHTML(scoreLabel)}</span>${isPareto?'<span class="detail-badge">PARETO EFFICIENT</span>':''}${m.status==='not_listed'||m.status==='unavailable'?'<span class="detail-badge badge-unavailable">NOT LISTED</span>':''}</div>
       <div class="detail-stats"><div class="detail-stat"><span>V5 EQUIVALENT INDEX</span><strong class="green">${numFmt(m.scoreValue)}</strong></div><div class="detail-stat"><span>BLENDED COST (USD)</span><strong>${costFmt(m.cost)}</strong></div></div>
-      <div class="detail-cost-breakdown"><span>INPUT / 1M</span><b>${costFmt(p.input)}</b><span>CACHED INPUT / 1M</span><b>${costFmt(p.cached)}</b><span>OUTPUT / 1M</span><b>${costFmt(p.output)}</b><span>CACHE 品質</span><b>${escapeHTML(cacheMsg)}</b><span>分數信心</span><b>${escapeHTML(confidence)}</b></div>
+      <div class="detail-cost-breakdown"><span>INPUT / 1M</span><b>${priceFmt(p.input)}</b><span>CACHED INPUT / 1M</span><b>${priceFmt(p.cached)}</b><span>OUTPUT / 1M</span><b>${priceFmt(p.output)}</b><span>CACHE 品質</span><b>${escapeHTML(cacheMsg)}</b><span>分數信心</span><b>${escapeHTML(confidence)}</b></div>
       <div class="detail-copy"><strong>分數依據：</strong>${escapeHTML(m.score.basis||'—')} ${m.score.uncertainty ? '(參考估計幅度 ±'+numFmt(m.score.uncertainty)+'；非統計信賴區間)':''}</div>
       <a class="detail-link" href="${escapeHTML(url)}" target="_blank" rel="noreferrer">查看 UberLLM 模型 ↗</a><br>
       <a class="detail-link" href="${escapeHTML(src)}" target="_blank" rel="noreferrer">查看分數來源 ↗</a>

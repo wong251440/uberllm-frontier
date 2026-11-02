@@ -67,7 +67,7 @@ bash scripts/deploy_github_pages.sh
 
 資料來源：
 
-- UberLLM：`https://api.uberllm.dev/api/v1/public/models` (documented at https://uberllm.dev/docs/pricing)。此 API 的 `price_now` 欄位是**模型當前列示的價格上限**，不是網站每 30 秒刷新之「最便宜賣家即時成交價」，也不是每筆請求保證會付的價格。資料每天抽樣一次。若使用自有 API key，優先嘗試 `https://api.uberllm.dev/v1/models`。
+- UberLLM：模型清單使用 `https://api.uberllm.dev/api/v1/public/models`；所有價格改用官方頁面同源 `https://uberllm.dev/api/v1/public/market/live` 的 `price_now`（市場最低價，每百萬 tokens），包含 cache-read 價格。每日快照保留來源時間，並非每 30 秒更新；實際成交價可能較高。來源失敗時拒絕更新，不以列示價替代。2026-11-02 修正前的歷史資料仍為原目錄價格，跨此日期的變化可能包含價格來源切換。
 - Artificial Analysis：`https://artificialanalysis.ai/api/v2/language/models/free`，API key 在伺服器／GitHub Actions secret 中，前端不會取得。**僅在取得合適的公開再散布許可時才能將官方 API 分數定期發布到公開 Pages**。官方說明：https://artificialanalysis.ai/data-api/docs 。
 - 起始模型及分數：2026-11-01 的前次 251 個模型快照，涵蓋正式 V5、V4 校準與啟發式推估。**此快照不是即時 API 讀值**。未透過公開 API 實際驗證前，網站標記為 `BASELINE SNAPSHOT`。
 
@@ -154,7 +154,7 @@ GitHub Pages 與本機 HTTP 預覽會從 `data/latest.json`、`data/history.json
 - **公開模型端點未能在目前執行環境直接測試 HTTP 回應**。價格 parser 支援常見 `price_now`、`pricing`、cache schema，並使用舊快照比較判斷 USD/token 或 USD/1M 單位。如果 UberLLM 更改資料格式，Action 會**拒絕覆蓋既有資料**。請在 Actions 日誌查看 parser 錯誤、修改 `scripts/update.py` 的欄位映射後重跑。
 - **每天部署必須使用 GitHub Actions 發布模式**：Actions 的 `GITHUB_TOKEN` commit 不會觸發 Pages branch 模式重建；本專案同一排程會直接執行 `actions/deploy-pages` 以更新網站。**GitHub Actions 排程不是秒級準時觸發**，可能延遲。第一次部署需手動點 `Run workflow`。長期未活動的 public repo 可能被 GitHub 停用排程；本專案每天有有效更新會自動提交當天 timestamp，避免純粹沒有異動而被判定長期無活動，但不保證免受 GitHub 服務政策影響。
 - **公開 Pages 意味著整份 repo 和 data JSON 可供任何人存取**；不要將個人、公司機密、API keys、內部模型使用量等放入資料。AA key 僅放 GitHub Actions secrets。
-- **價格 vs 實際支付**：此圖分析模型價格上限或目錄快照，不代表該請求一定由最低價賣家處理，且不包含 top-up fee 或稅費。
+- **價格 vs 實際支付**：此圖分析市場最低價每日快照，不代表該請求一定由最低價賣家處理，且不包含 top-up fee 或稅費。
 
 來源及授權文件：
 

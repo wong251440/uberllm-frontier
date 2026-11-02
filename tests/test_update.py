@@ -57,8 +57,8 @@ def test_modeling_cost():
 
 def test_latest_seed_has_complete_data():
     seed=mod.read_json(path.parents[1]/'data/latest.json')
-    assert len(seed['models'])==251
-    assert len(set(m['id'] for m in seed['models']))==251
+    assert len(seed['models'])>=251
+    assert len(set(m['id'] for m in seed['models']))==len(seed['models'])
     assert all(m['score']['value'] is not None for m in seed['models'])
 
 
@@ -99,14 +99,14 @@ def test_dry_run_integration_full_catalog_and_new_v5(tmp_path,monkeypatch):
         dry_run=True
     monkeypatch.setattr(mod,'DATA',tmp_path)
     latest,hist,events=mod.execute(Args())
-    assert len(latest['models'])==252
+    assert len(latest['models'])==len(baseline['models'])+1
     new=next(x for x in latest['models'] if x['id']=='openai/gpt-new-test')
     assert new['score']['value']==59 and new['score']['kind']=='v5'
     assert latest['monitoring_active'] is True
     assert any(e['type']=='new_v5' and e['model_id']=='openai/gpt-new-test' for e in events['items'])
     assert len(hist['dates'])>=2
     assert len(hist['by_date'][hist['dates'][-1]]['openai/gpt-new-test'])==6
-    assert mod.read_json(tmp_path/'latest.json')['monitoring_active'] is False
+    assert mod.read_json(tmp_path/'latest.json')==baseline
 
 
 def test_public_mode_license_guard_hides_aa_live_updates(tmp_path,monkeypatch):
@@ -164,3 +164,28 @@ def test_public_mtok_prices_are_already_per_million():
     assert rows[0]['prices']=={'input':0.0308,'output':0.132,'cached':0.00462}
     assert rows[0]['unit_hint']=='million'
     assert mod.infer_scale(rows,{})==1.0
+
+
+def test_market_prices_override_listed_prices_for_every_model():
+    catalog={'models':[
+        {'id':'deepseek/deepseek-v4.1-flash','price_now':{'input_usd_per_mtok':.00675,'output_usd_per_mtok':.075}},
+        {'id':'other/model','pricing':{'input_usd_per_mtok':10,'output_usd_per_mtok':20}}]}
+    market={'models':{
+        'deepseek/deepseek-v4.1-flash':{'available':True,'price_now':{
+            'input_usd_per_mtok':.000179,'output_usd_per_mtok':.001374,'cache_read_usd_per_mtok':.000004}},
+        'other/model':{'available':True,'price_now':{
+            'input_usd_per_mtok':.02,'output_usd_per_mtok':.03}}}}
+    rows=mod.market_catalog(catalog,market)
+    assert len(rows)==2
+    assert rows[0]['prices']=={'input':.000179,'output':.001374,'cached':.000004}
+    assert rows[1]['prices']=={'input':.02,'output':.03,'cached':None}
+    assert all(r['price_basis']=='market_lowest' for r in rows)
+    assert mod.infer_scale(rows,{})==1
+
+
+
+def test_market_missing_price_never_falls_back_to_listed_rate():
+    catalog={'models':[{'id':'x/y','pricing':{'input':10,'output':20}}]}
+    with pytest.raises(ValueError):mod.market_catalog(catalog,{'models':{}})
+    with pytest.raises(ValueError):mod.market_catalog(catalog,{'models':{'x/y':{'price_now':None}}})
+    with pytest.raises(ValueError):mod.market_catalog(catalog,{'models':{'x/y':{'price_now':{'input':1,'output':2}}}})

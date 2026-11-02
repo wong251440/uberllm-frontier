@@ -76,6 +76,7 @@ jobs:
           mkdir -p site
           cp index.html site/index.html
           cp -R assets data site/
+          python -c 'import json,pathlib; data={n:json.loads(pathlib.Path("data/"+n+".json").read_text()) for n in ("latest","history","events")}; pathlib.Path("site/assets/bootstrap.js").write_text("window.FRONTIER_BOOTSTRAP = "+json.dumps(data,ensure_ascii=False,separators=(",",":"))+";\n")'
           touch site/.nojekyll
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

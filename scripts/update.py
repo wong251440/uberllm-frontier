@@ -25,6 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / 'data'
 UBERLLM_PUBLIC_URL = 'https://api.uberllm.dev/api/v1/public/models'
 UBERLLM_AUTH_URL = 'https://api.uberllm.dev/v1/models'
+UBERLLM_MARKET_URL = 'https://uberllm.dev/api/v1/public/market/live'
 AA_FREE_URL = 'https://artificialanalysis.ai/api/v2/language/models/free'
 
 
@@ -131,6 +132,30 @@ def parse_catalog(payload):
                        'model_url':f'https://uberllm.dev/models/{id_}'})
     # Preserve unique IDs, favour first record with price.
     return list({x['id']:x for x in result}.values())
+
+
+def market_catalog(catalog, market):
+    """Use the same live price feed as UberLLM's model pages, not listed rates."""
+    live = market.get('models')
+    if not isinstance(live, dict) or not live:
+        raise ValueError('Invalid live market feed; refusing to substitute listed prices')
+    rows = []
+    for original in as_items(catalog):
+        row = dict(original)
+        entry = live.get(row.get('id'))
+        if not isinstance(entry, dict) or not isinstance(entry.get('price_now'), dict):
+            continue
+        # Do not allow parse_catalog to fall back to listed/official rates.
+        row = {k: v for k, v in row.items() if k not in ('pricing','prices','price','current_price')}
+        row['price_now'] = entry['price_now']
+        row['available'] = entry.get('available', row.get('available'))
+        rows.append(row)
+    parsed = parse_catalog({'models': rows})
+    if not parsed or any(row['unit_hint'] != 'million' for row in parsed):
+        raise ValueError('Live market prices must have explicit per-million units')
+    for row in parsed:
+        row['price_basis'] = 'market_lowest'
+    return parsed
 
 
 def infer_scale(parsed, prior):
@@ -288,7 +313,8 @@ def update_prices(old, parsed, scale, stamp):
             cq='assumed_uncached'
         before=effective_cost(m) if old_p.get('input') is not None and old_p.get('output') is not None and old_p.get('cached') is not None else None
         m['prices']={'input':inp,'output':out,'cached':cache}
-        m['price_quality']='uberllm_public_catalog';m['cache_quality']=cq
+        m['price_quality']='uberllm_market_lowest' if row.get('price_basis') == 'market_lowest' else 'uberllm_public_catalog'
+        m['cache_quality']='live_market' if cq == 'live_catalog' and row.get('price_basis') == 'market_lowest' else cq
         m['status']='listed' if row['available'] is not False else 'unavailable'
         after=effective_cost(m)
         if before is not None and before>0 and after>0:
@@ -348,8 +374,15 @@ def execute(args):
                 payload=req_json(UBERLLM_PUBLIC_URL);price_source='uberllm_public'
         else:
             payload=req_json(UBERLLM_PUBLIC_URL);price_source='uberllm_public'
-    parsed=parse_catalog(payload)
-    scale=infer_scale(parsed,{m['id']:m for m in old['models']})
+    market_observed_at=None
+    if args.fixture_uberllm:
+        parsed=parse_catalog(payload)
+    else:
+        market=req_json(UBERLLM_MARKET_URL)
+        parsed=market_catalog(payload,market)
+        price_source='uberllm_market_lowest'
+        market_observed_at=dt.datetime.fromtimestamp(market['computed_at']/1000,dt.timezone.utc).isoformat().replace('+00:00','Z')
+    scale=1.0 if market_observed_at else infer_scale(parsed,{m['id']:m for m in old['models']})
     models,events,stats=update_prices(copy.deepcopy(old),parsed,scale,stamp)
     warnings=[]
     aa_source='not_configured'
@@ -392,7 +425,7 @@ def execute(args):
     hist['dates']=dates
     hist['by_date']={d:hist['by_date'][d] for d in dates}
     latest={'schema':1,'generated_at':now.isoformat().replace('+00:00','Z'),
-            'price_observed_at':stamp,'score_observed_at':stamp if aa_source in ('artificial_analysis_free_api','test_fixture') and reported_index_version is not None and int(reported_index_version)==5 else old.get('score_observed_at'),
+            'price_observed_at':stamp,'market_observed_at':market_observed_at,'price_basis':'market_lowest' if market_observed_at else 'catalog_fixture','score_observed_at':stamp if aa_source in ('artificial_analysis_free_api','test_fixture') and reported_index_version is not None and int(reported_index_version)==5 else old.get('score_observed_at'),
             'sources':{'uberllm':price_source,'artificial_analysis':aa_source},
             'intelligence_index_version':f'{version:g}',
             'aa_api_reported_index_version':reported_index_version,
